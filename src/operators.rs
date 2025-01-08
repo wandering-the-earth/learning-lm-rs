@@ -70,8 +70,30 @@ pub fn masked_softmax(y: &mut Tensor<f32>) {
     }
 }
 
+// 均方根 归一化操作
 pub fn rms_norm(y: &mut Tensor<f32>, x: &Tensor<f32>, w: &Tensor<f32>, epsilon: f32) {
-    todo!("实现 rms_norm，计算前做一些必要的检查会帮助你后续调试")
+    // todo!("实现 rms_norm，计算前做一些必要的检查会帮助你后续调试")
+    assert!(y.size() == x.size(), "y 和 x 的总元素数量必须相同");
+    assert!(y.shape() == x.shape(), "y 和 x 的形状必须完全一致");
+    assert!(w.size() == x.shape()[1], "w 的长度必须等于 x 的第二维度大小");
+
+    let y_size = y.size();
+    let y_data = unsafe { y.data_mut() };
+    
+    for i in 0..y_size {
+        let block_start = (i / w.size()) * w.size();
+        let block_end = block_start + w.size();
+
+        let mut rms = 0.0;
+        for j in block_start..block_end {
+            rms += x.data()[j].powi(2); // 累加平方
+        }
+        rms = (rms / w.size() as f32 + epsilon).sqrt(); // 计算均方根
+
+        // 归一化当前元素
+        y_data[i] = w.data()[i % w.size()] * x.data()[i] / rms;
+    }
+    
 }
 
 // y = silu(x) * y
@@ -83,13 +105,50 @@ pub fn swiglu(y: &mut Tensor<f32>, x: &Tensor<f32>) {
     // let _y = unsafe { y.data_mut() };
     // let _x = x.data();
 
-    todo!("实现 silu，这里给了一些前期准备工作的提示，你可以参考")
+    // todo!("实现 silu，这里给了一些前期准备工作的提示，你可以参考")
+
+    assert!(y.size() == x.size(), "y 和 x 的总元素数量必须相同");
+    assert!(y.shape() == x.shape(), "y 和 x 的形状必须完全一致");
+    let y_size = y.size();
+    let y_data = unsafe { y.data_mut() };
+    let x_data = x.data();
+
+    for i in 0..y_size {
+        y_data[i] *= x_data[i] / (1.0 + (-x_data[i]).exp());
+    }
 }
 
 // C = beta * C + alpha * A @ B^T
 // hint: You don't need to do an explicit transpose of B
+/// C：输出矩阵，大小为 (m, n)
+/// A：输入矩阵，大小为 (m, k)
+/// B：输入矩阵，大小为 (n, k)（注意 B 已转置）
 pub fn matmul_transb(c: &mut Tensor<f32>, beta: f32, a: &Tensor<f32>, b: &Tensor<f32>, alpha: f32) {
-    todo!("实现 matmul_transb，计算前做一些必要的检查会帮助你后续调试");
+    // todo!("实现 matmul_transb，计算前做一些必要的检查会帮助你后续调试");
+    assert!(c.shape().len() == 2, "C 必须是二维矩阵");
+    assert!(a.shape().len() == 2, "A 必须是二维矩阵");
+    assert!(b.shape().len() == 2, "B 必须是二维矩阵");
+    assert!(c.shape()[0] == a.shape()[0], "C 的行数必须等于 A 的行数");
+    assert!(c.shape()[1] == b.shape()[0], "C 的列数必须等于 B 的行数");
+    assert!(a.shape()[1] == b.shape()[1], "A 的列数必须等于 B 的列数");
+
+    let m = c.shape()[0]; 
+    let n = c.shape()[1]; 
+    let k = a.shape()[1]; 
+
+    let a_data = a.data();
+    let b_data = b.data();
+    let c_data = unsafe { c.data_mut() };
+
+    for i in 0..m {
+        for j in 0..n {
+            let mut sum = 0.0;
+            for p in 0..k {
+                sum += a_data[i * k + p] * b_data[j * k + p];
+            }
+            c_data[i * n + j] = alpha * sum + beta * c_data[i * n + j];
+        }
+    }
 }
 
 // Dot product of two tensors (treated as vectors)
