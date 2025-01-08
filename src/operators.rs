@@ -25,6 +25,7 @@ pub fn rope(y: &mut Tensor<f32>, start_pos: usize, theta: f32) {
     for tok in 0..seq_len {
         let pos = start_pos + tok;
         for head in 0..n_heads {
+            
             for i in 0..d / 2 {
                 let a = data[tok * n_heads * d + head * d + i];
                 let b = data[tok * n_heads * d + head * d + i + d / 2];
